@@ -185,7 +185,7 @@ theorem deepHole_far {n : ℕ} {ε : ℝ} (hε : 0 < ε) (k : Fin n → ℤ) :
         rw [Real.sqrt_mul (by positivity), Real.sqrt_sq hε.le]
     _ ≤ _ := Real.sqrt_le_sqrt hs
 
-/-- **Gaps exist (n ≥ 2), but are ultrasmall in diameter.** The deep hole is
+/-- **Gaps exist (n ≥ 2).** The deep hole is
 at distance at least `(√n - 1) ε > 0` from every point of every
 point-sphere; by `near_sphere` this constant is attained. -/
 theorem gap_exists {n : ℕ} (hn : 2 ≤ n) {ε : ℝ} (hε : 0 < ε) :
