@@ -911,4 +911,257 @@ theorem delta_root (κ : ℝ) (hκ : 0 < κ) :
   refine ⟨by simp only [r]; linarith, by simp only [r]; linarith, ?_⟩
   simp only [r]; nlinarith [hs]
 
+/-! ## Predictions: photon propagation on the Planck lattice -/
+
+/-- The lattice frequency as a function of the wave vector `k`: `θᵢ = a kᵢ / 2`. -/
+noncomputable def omegaK (c a : ℝ) (k : Fin 3 → ℝ) : ℝ :=
+  omegaLat c a (fun j => a * k j / 2)
+
+/-- `σ(θ) = Σᵢ sin² θᵢ`. -/
+noncomputable def sigmaLat (θ : Fin 3 → ℝ) : ℝ := ∑ i, Real.sin (θ i) ^ 2
+
+/-- Group velocity: the partial derivative of `ω` along `kᵢ` is
+`c sin θᵢ cos θᵢ / √σ`. -/
+theorem group_velocity (c a : ℝ) (k : Fin 3 → ℝ) (i : Fin 3)
+    (hσ : 0 < sigmaLat (fun j => a * k j / 2)) :
+    HasDerivAt (fun t => omegaK c a (fun j => k j + if j = i then t else 0))
+      (c * Real.sin (a * k i / 2) * Real.cos (a * k i / 2)
+        / Real.sqrt (sigmaLat (fun j => a * k j / 2))) 0 := by
+  set θ : Fin 3 → ℝ := fun j => a * k j / 2 with hθ
+  have hterm : ∀ j ∈ (Finset.univ : Finset (Fin 3)),
+      HasDerivAt (fun t => Real.sin (a * (k j + if j = i then t else 0) / 2) ^ 2)
+        (if j = i then a * Real.sin (θ j) * Real.cos (θ j) else 0) 0 := by
+    intro j _
+    by_cases hj : j = i
+    · subst hj
+      have h1 : HasDerivAt (fun t : ℝ => a * (k j + if j = j then t else 0) / 2) (a / 2) 0 := by
+        have : (fun t : ℝ => a * (k j + if j = j then t else 0) / 2) = fun t => a * k j / 2 + (a / 2) * t := by
+          funext t; simp; ring
+        rw [this]
+        simpa using ((hasDerivAt_id (0 : ℝ)).const_mul (a / 2)).const_add (a * k j / 2)
+      have h2 := (h1.sin).pow 2
+      simp only [ite_true] at h2 ⊢
+      convert h2 using 1
+      simp [hθ]; ring
+    · have : (fun t : ℝ => Real.sin (a * (k j + if j = i then t else 0) / 2) ^ 2)
+          = fun _ => Real.sin (θ j) ^ 2 := by
+        funext t; simp [hj, hθ]
+      rw [this]; simp only [hj, ite_false]
+      exact hasDerivAt_const _ _
+  have hsum := HasDerivAt.fun_sum hterm
+  rw [Finset.sum_ite_eq' Finset.univ i] at hsum; simp only [Finset.mem_univ, ite_true] at hsum
+  have hσ0 : ∑ j, Real.sin (a * (k j + if j = i then (0 : ℝ) else 0) / 2) ^ 2
+      = sigmaLat θ := by simp [sigmaLat, hθ]
+  have hsq := hsum.sqrt (by rw [hσ0]; exact hσ.ne')
+  have hfin := hsq.const_mul (2 * c / a)
+  unfold omegaK omegaLat
+  by_cases ha : a = 0
+  · subst ha; simp
+    exact hasDerivAt_const _ _
+  convert hfin using 1
+  rw [hσ0]
+  have hs : 0 < Real.sqrt (sigmaLat θ) := Real.sqrt_pos.mpr hσ
+  field_simp
+  ring
+
+/-- Speed of a lattice photon: `|v|²/c² = 1 - Σ sin⁴/σ`, and it lies between
+`1 - σ` and `1 - σ/3`. -/
+theorem speed_window (θ : Fin 3 → ℝ) (hσ : 0 < sigmaLat θ) :
+    let V2 := (∑ i, (Real.sin (θ i) * Real.cos (θ i)) ^ 2) / sigmaLat θ
+    1 - sigmaLat θ ≤ V2 ∧ V2 ≤ 1 - sigmaLat θ / 3 := by
+  intro V2
+  have hc : ∀ i, Real.cos (θ i) ^ 2 = 1 - Real.sin (θ i) ^ 2 := fun i => by
+    rw [Real.cos_sq']
+  have hnum : ∑ i, (Real.sin (θ i) * Real.cos (θ i)) ^ 2
+      = sigmaLat θ - ∑ i, (Real.sin (θ i) ^ 2) ^ 2 := by
+    simp only [sigmaLat, ← Finset.sum_sub_distrib]
+    refine Finset.sum_congr rfl fun i _ => ?_
+    rw [mul_pow, hc i]; ring
+  have hV : V2 = 1 - (∑ i, (Real.sin (θ i) ^ 2) ^ 2) / sigmaLat θ := by
+    simp only [V2, hnum]; field_simp
+  set x := Real.sin (θ 0) ^ 2
+  set y := Real.sin (θ 1) ^ 2
+  set z := Real.sin (θ 2) ^ 2
+  have hx : 0 ≤ x := sq_nonneg _
+  have hy : 0 ≤ y := sq_nonneg _
+  have hz : 0 ≤ z := sq_nonneg _
+  have hs : sigmaLat θ = x + y + z := by simp [sigmaLat, Fin.sum_univ_three, x, y, z]
+  have h4 : ∑ i, (Real.sin (θ i) ^ 2) ^ 2 = x ^ 2 + y ^ 2 + z ^ 2 := by
+    simp [Fin.sum_univ_three, x, y, z]
+  rw [hV, h4, hs]
+  rw [hs] at hσ
+  constructor
+  · rw [sub_le_sub_iff_left, div_le_iff₀ hσ]; nlinarith [mul_nonneg hx hy, mul_nonneg hy hz, mul_nonneg hx hz]
+  · rw [sub_le_sub_iff_left, le_div_iff₀ hσ]
+    nlinarith [sq_nonneg (x - y), sq_nonneg (y - z), sq_nonneg (x - z)]
+
+/-- The energy of a lattice photon in Planck units: with spacing `a = 2ℓ` and
+`E_P = ħc/ℓ`, `ħω / E_P = √σ`. -/
+theorem energy_ratio (ħ c ℓ : ℝ) (hħ : ħ ≠ 0) (hc : c ≠ 0) (hℓ : ℓ ≠ 0) (θ : Fin 3 → ℝ) :
+    ħ * omegaLat c (2 * ℓ) θ / (ħ * c / ℓ) = Real.sqrt (sigmaLat θ) := by
+  unfold omegaLat sigmaLat
+  field_simp
+
+/-- Subluminal and exactly quadratic: if `(v/c)² ∈ [1-u², 1-u²/3]`,
+then `u²/6 ≤ 1 - v/c ≤ u²`. -/
+theorem quadratic_delay (u w : ℝ) (hw : 0 ≤ w)
+    (hlo : 1 - u ^ 2 ≤ w ^ 2) (hhi : w ^ 2 ≤ 1 - u ^ 2 / 3) :
+    u ^ 2 / 6 ≤ 1 - w ∧ 1 - w ≤ u ^ 2 := by
+  constructor
+  · nlinarith [sq_nonneg (w - 1 + u ^ 2 / 6), sq_nonneg u]
+  · nlinarith [sq_nonneg u, sq_nonneg (1 - w)]
+
+/-- Axis and diagonal: along an axis `(v/c)² = 1 - σ`, along the diagonal
+`(v/c)² = 1 - σ/3`; both ends of the window are attained. -/
+theorem speed_axis_diagonal (t : ℝ) (ht : Real.sin t ≠ 0) :
+    (∑ i, (Real.sin ((![t, 0, 0] : Fin 3 → ℝ) i) * Real.cos ((![t, 0, 0] : Fin 3 → ℝ) i)) ^ 2)
+        / sigmaLat ![t, 0, 0] = 1 - sigmaLat ![t, 0, 0] ∧
+    (∑ i, (Real.sin ((![t, t, t] : Fin 3 → ℝ) i) * Real.cos ((![t, t, t] : Fin 3 → ℝ) i)) ^ 2)
+        / sigmaLat ![t, t, t] = 1 - sigmaLat ![t, t, t] / 3 := by
+  have hs : Real.sin t ^ 2 ≠ 0 := pow_ne_zero 2 ht
+  have hc : Real.cos t ^ 2 = 1 - Real.sin t ^ 2 := Real.cos_sq' t
+  simp only [sigmaLat, Fin.sum_univ_three, Matrix.cons_val_zero, Matrix.cons_val_one,
+    Matrix.cons_val_two, Matrix.head_cons, Matrix.tail_cons, Real.sin_zero, Real.cos_zero]
+  constructor
+  · field_simp; rw [hc]; ring
+  · field_simp; rw [hc]; ring
+
+/-- The quantum-gravity scale of the quadratic convention
+`Δv/c = (3/2)(E/E_QG)²`: if `u²/6 ≤ Δv/c ≤ u²` then `E_QG/E_P = q` with
+`3/2 ≤ q² ≤ 9`. -/
+theorem eqg_window (u d q : ℝ) (hu : 0 < u) (hq : 0 < q)
+    (hd : d = 3 / 2 * (u / q) ^ 2) (hlo : u ^ 2 / 6 ≤ d) (hhi : d ≤ u ^ 2) :
+    3 / 2 ≤ q ^ 2 ∧ q ^ 2 ≤ 9 := by
+  subst hd
+  have hq2 : 0 < q ^ 2 := by positivity
+  have hu2 : 0 < u ^ 2 := by positivity
+  rw [div_pow] at hlo hhi
+  constructor
+  · rw [mul_div_assoc', div_le_iff₀ hq2] at hhi; nlinarith
+  · rw [mul_div_assoc', le_div_iff₀ hq2] at hlo; nlinarith
+
+/-- **Photon propagation on the Planck lattice.** Spacing `a = 2ℓ`, Planck energy
+`E_P = ħc/ℓ`, a photon of lattice wave vector `k` with `θᵢ = a kᵢ/2` and `σ > 0`,
+energy `E = ħω`, `u = E/E_P` and group velocity `vᵢ = ∂ω/∂kᵢ`. Then
+`u ≤ √3`, `c²(1 - u²) ≤ |v|² ≤ c²(1 - u²/3)`, and the delay is subluminal and
+quadratic: `u²/6 ≤ 1 - |v|/c ≤ u²`. -/
+theorem photon_prediction (ħ c ℓ : ℝ) (hħ : 0 < ħ) (hc : 0 < c) (hℓ : 0 < ℓ)
+    (k : Fin 3 → ℝ) (hσ : 0 < sigmaLat (fun j => 2 * ℓ * k j / 2)) :
+    let θ : Fin 3 → ℝ := fun j => 2 * ℓ * k j / 2
+    let v : Fin 3 → ℝ := fun i => c * Real.sin (θ i) * Real.cos (θ i) / Real.sqrt (sigmaLat θ)
+    let u := ħ * omegaK c (2 * ℓ) k / (ħ * c / ℓ)
+    (∀ i, HasDerivAt (fun t => omegaK c (2 * ℓ) (fun j => k j + if j = i then t else 0)) (v i) 0) ∧
+    u ≤ Real.sqrt 3 ∧
+    c ^ 2 * (1 - u ^ 2) ≤ ∑ i, v i ^ 2 ∧ ∑ i, v i ^ 2 ≤ c ^ 2 * (1 - u ^ 2 / 3) ∧
+    u ^ 2 / 6 ≤ 1 - Real.sqrt (∑ i, v i ^ 2) / c ∧ 1 - Real.sqrt (∑ i, v i ^ 2) / c ≤ u ^ 2 := by
+  intro θ v u
+  have hu : u = Real.sqrt (sigmaLat θ) := by
+    simp only [u, omegaK]; exact energy_ratio ħ c ℓ hħ.ne' hc.ne' hℓ.ne' θ
+  have hu2 : u ^ 2 = sigmaLat θ := by rw [hu, Real.sq_sqrt hσ.le]
+  have hsq : ∑ i, v i ^ 2 = c ^ 2 * ((∑ i, (Real.sin (θ i) * Real.cos (θ i)) ^ 2) / sigmaLat θ) := by
+    simp only [v, Finset.mul_sum, Finset.sum_div]
+    refine Finset.sum_congr rfl fun i _ => ?_
+    rw [div_pow, Real.sq_sqrt hσ.le]; ring
+  obtain ⟨hlo, hhi⟩ := speed_window θ hσ
+  have hσ3 : sigmaLat θ ≤ 3 := by
+    simp only [sigmaLat, Fin.sum_univ_three]
+    nlinarith [Real.sin_sq_le_one (θ 0), Real.sin_sq_le_one (θ 1), Real.sin_sq_le_one (θ 2)]
+  have hV0 : 0 ≤ (∑ i, (Real.sin (θ i) * Real.cos (θ i)) ^ 2) / sigmaLat θ := by positivity
+  have hw : Real.sqrt (∑ i, v i ^ 2) / c
+      = Real.sqrt ((∑ i, (Real.sin (θ i) * Real.cos (θ i)) ^ 2) / sigmaLat θ) := by
+    rw [hsq, Real.sqrt_mul (by positivity), Real.sqrt_sq hc.le]; field_simp
+  have hq := quadratic_delay u _ (Real.sqrt_nonneg _)
+    (by rw [Real.sq_sqrt hV0, hu2]; exact hlo) (by rw [Real.sq_sqrt hV0, hu2]; exact hhi)
+  refine ⟨fun i => group_velocity c (2 * ℓ) k i hσ, ?_, ?_, ?_, ?_, ?_⟩
+  · rw [hu]; exact Real.sqrt_le_sqrt hσ3
+  · rw [hsq, hu2]; exact mul_le_mul_of_nonneg_left hlo (by positivity)
+  · rw [hsq, hu2]; exact mul_le_mul_of_nonneg_left hhi (by positivity)
+  · rw [hw]; exact hq.1
+  · rw [hw]; exact hq.2
+
+/-- Cotangent near `0`: for `0 < y ≤ 1`,
+`1/y - y/3 - (59/750) y³ ≤ cot y ≤ 1/y - y/3`. -/
+theorem cot_window (y : ℝ) (hy : 0 < y) (hy1 : y ≤ 1) :
+    1 / y - y / 3 - 59 / 750 * y ^ 3 ≤ Real.cos y / Real.sin y ∧
+    Real.cos y / Real.sin y ≤ 1 / y - y / 3 := by
+  have hab : |y| ≤ 1 := by rw [abs_of_pos hy]; exact hy1
+  have hc := Real.cos_bound hab
+  have hs := Real.sin_bound hab
+  rw [abs_of_pos hy] at hc hs
+  have hcu : Real.cos y ≤ 1 - y ^ 2 / 2 + y ^ 4 * (5 / 96) := by linarith [le_abs_self (Real.cos y - (1 - y ^ 2 / 2))]
+  have hcl : 1 - y ^ 2 / 2 ≤ Real.cos y := Real.one_sub_sq_div_two_le_cos
+  have hsu : Real.sin y ≤ y - y ^ 3 / 6 + y ^ 5 / 100 := by linarith [le_abs_self (Real.sin y - (y - y ^ 3 / 6))]
+  have hsl : y - y ^ 3 / 6 ≤ Real.sin y := Real.sin_ge_sub_cube hy.le
+  have hy2 : y ^ 2 ≤ 1 := by nlinarith
+  have hsp : 5 / 6 * y ≤ Real.sin y := by nlinarith
+  have hsin : 0 < Real.sin y := by linarith
+  have hy3 : 0 < y ^ 3 := by positivity
+  constructor
+  · rw [le_div_iff₀ hsin]
+    have key : (1 / y - y / 3 - 59 / 750 * y ^ 3) * Real.sin y * y
+        = (1 - y ^ 2 / 3) * Real.sin y - 59 / 750 * y ^ 4 * Real.sin y := by field_simp
+    have h1 : (1 - y ^ 2 / 3) * Real.sin y ≤ (1 - y ^ 2 / 3) * (y - y ^ 3 / 6 + y ^ 5 / 100) :=
+      mul_le_mul_of_nonneg_left hsu (by nlinarith)
+    have h2 : 59 / 750 * y ^ 4 * (5 / 6 * y) ≤ 59 / 750 * y ^ 4 * Real.sin y :=
+      mul_le_mul_of_nonneg_left hsp (by positivity)
+    have h3 : y * (1 - y ^ 2 / 2) ≤ y * Real.cos y := mul_le_mul_of_nonneg_left hcl hy.le
+    have : (1 / y - y / 3 - 59 / 750 * y ^ 3) * Real.sin y * y ≤ Real.cos y * y := by
+      rw [key]; nlinarith [pow_pos hy 5, pow_pos hy 7]
+    exact le_of_mul_le_mul_right this hy
+  · rw [div_le_iff₀ hsin]
+    have h1 : (1 - y ^ 2 / 3) * (y - y ^ 3 / 6) ≤ (1 - y ^ 2 / 3) * Real.sin y :=
+      mul_le_mul_of_nonneg_left hsl (by nlinarith)
+    have h3 : y * Real.cos y ≤ y * (1 - y ^ 2 / 2 + y ^ 4 * (5 / 96)) := mul_le_mul_of_nonneg_left hcu hy.le
+    have key : (1 / y - y / 3) * Real.sin y * y = (1 - y ^ 2 / 3) * Real.sin y := by field_simp
+    have : Real.cos y * y ≤ (1 / y - y / 3) * Real.sin y * y := by
+      rw [key]; nlinarith [pow_pos hy 5]
+    exact le_of_mul_le_mul_right this hy
+
+/-- **Casimir energy of the lattice string, with an error bound.** For `N`
+interior sites, spacing `a > 0` and length `L = (N+1)a`, the exact zero-point
+energy differs from bulk + boundary + Casimir terms by at most `ħc a²/(50 L³)`:
+`-ħca²/(50L³) ≤ E₀ - (2ħcL/(πa²) - ħc/(2a) - πħc/(24L)) ≤ 0`. -/
+theorem casimir_window (N : ℕ) (ħ c a : ℝ) (hħ : 0 ≤ ħ) (hc : 0 ≤ c) (ha : 0 < a) :
+    let L := (N + 1 : ℝ) * a
+    let E₀ := (∑ j ∈ Finset.range N, ħ / 2 * (2 * c / a * Real.sin ((j + 1 : ℝ) * (π / (2 * (N + 1))))))
+    (-(ħ * c * a ^ 2 / (50 * L ^ 3)) ≤
+        E₀ - (2 * ħ * c * L / (π * a ^ 2) - ħ * c / (2 * a) - π * ħ * c / (24 * L)) ∧
+    E₀ - (2 * ħ * c * L / (π * a ^ 2) - ħ * c / (2 * a) - π * ħ * c / (24 * L)) ≤ 0) := by
+  intro L E₀
+  have hN : (1 : ℝ) ≤ N + 1 := by have := (Nat.cast_nonneg N : (0:ℝ) ≤ N); linarith
+  have hL : L = (N + 1) * a := rfl
+  have hE : E₀ = ħ * c / (2 * a) * (Real.cos (π / (4 * (N + 1))) / Real.sin (π / (4 * (N + 1))) - 1) :=
+    casimir_string N ħ c a ha.ne'
+  set y := π / (4 * (N + 1)) with hy
+  have hy0 : 0 < y := by positivity
+  have hy1 : y ≤ 1 := by
+    rw [hy, div_le_one (by positivity)]; nlinarith [Real.pi_lt_four]
+  obtain ⟨hlo, hhi⟩ := cot_window y hy0 hy1
+  have hπ : 0 < π := Real.pi_pos
+  have hNa : (N + 1 : ℝ) = π / (4 * y) := by rw [hy]; field_simp
+  have hK : 0 ≤ ħ * c / (2 * a) := by positivity
+  have hdiff : E₀ - (2 * ħ * c * L / (π * a ^ 2) - ħ * c / (2 * a) - π * ħ * c / (24 * L))
+      = ħ * c / (2 * a) * (Real.cos y / Real.sin y - (1 / y - y / 3)) := by
+    rw [hE, hL, hNa]; field_simp; ring
+  rw [hdiff]
+  constructor
+  · have h1 := mul_le_mul_of_nonneg_left (by linarith : -(59 / 750 * y ^ 3) ≤ Real.cos y / Real.sin y - (1 / y - y / 3)) hK
+    have hb : ħ * c * a ^ 2 / (50 * L ^ 3) ≥ ħ * c / (2 * a) * (59 / 750 * y ^ 3) := by
+      rw [hL, hNa]
+      have hπ3 : π ^ 3 ≤ 3200 / 103 := by
+        have h4 := Real.pi_lt_d4
+        have h5 : π ^ 3 ≤ 3.1416 ^ 3 := pow_le_pow_left₀ Real.pi_pos.le h4.le 3
+        norm_num at h5 ⊢; linarith
+      have hc0 : 0 ≤ ħ * c := mul_nonneg hħ hc
+      rw [ge_iff_le, show ħ * c / (2 * a) * (59 / 750 * y ^ 3) = ħ * c * (59 * y ^ 3 / (1500 * a)) by ring,
+        show ħ * c * a ^ 2 / (50 * (π / (4 * y) * a) ^ 3) = ħ * c * (64 * y ^ 3 / (50 * π ^ 3 * a)) by
+          field_simp; ring]
+      apply mul_le_mul_of_nonneg_left _ hc0
+      rw [div_le_div_iff₀ (by positivity) (by positivity)]
+      have : 0 < y ^ 3 * a := by positivity
+      nlinarith
+    linarith
+  · exact mul_nonpos_of_nonneg_of_nonpos hK (by linarith)
+
+
 end QE.Phys
