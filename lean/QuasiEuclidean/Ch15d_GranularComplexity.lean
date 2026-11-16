@@ -1931,6 +1931,48 @@ theorem exactlyOne_not_gen2 :
   rintro ⟨m, σ, I, hS⟩
   exact h (hS ▸ proj_majClosed σ (gen2_majClosed I))
 
+/-! ### P versus NP as 2-SAT versus 3-SAT -/
+
+/-- The facts of complexity theory the equivalence uses, as named hypotheses. `Red A B` says
+that `A` reduces to `B` in polynomial time; `Nontriv B` that `B` has an instance with answer yes
+and one with answer no. The fields `sat2_P` (Krom; Aspvall, Plass and Tarjan) and `sat3_NP`,
+`sat3_hard` (Cook, Levin, Karp) are cited theorems; `red_P`, `P_sub_NP` and `P_red` are the
+closure properties of polynomial time. -/
+structure ComplexitySetting where
+  /-- Decision problems. -/
+  Lang : Type
+  /-- Polynomial-time reduction. -/
+  Red : Lang → Lang → Prop
+  /-- Problems with an instance answered yes and one answered no. -/
+  Nontriv : Lang → Prop
+  /-- Problems decidable in polynomial time. -/
+  P : Set Lang
+  /-- Problems whose solutions can be checked in polynomial time. -/
+  NP : Set Lang
+  /-- General 2-SAT. -/
+  sat2 : Lang
+  /-- General 3-SAT. -/
+  sat3 : Lang
+  red_P : ∀ {A B}, Red A B → B ∈ P → A ∈ P
+  P_sub_NP : P ⊆ NP
+  P_red : ∀ {A B}, A ∈ P → Nontriv B → Red A B
+  sat2_P : sat2 ∈ P
+  sat2_nontriv : Nontriv sat2
+  sat3_NP : sat3 ∈ NP
+  sat3_hard : ∀ A ∈ NP, Red A sat3
+
+/-- **P equals NP exactly when general 3-SAT reduces to general 2-SAT in polynomial time.**
+If `P = NP`, 3-SAT is in P and reduces to the nontrivial problem 2-SAT by deciding the instance
+and returning a fixed instance with the same answer. Conversely, a reduction of 3-SAT to 2-SAT
+puts 3-SAT in P, and every problem in NP reduces to 3-SAT. -/
+theorem p_eq_np_iff_sat3_red_sat2 (C : ComplexitySetting) : C.P = C.NP ↔ C.Red C.sat3 C.sat2 := by
+  constructor
+  · intro h
+    exact C.P_red (h ▸ C.sat3_NP) C.sat2_nontriv
+  · intro hr
+    have h3 : C.sat3 ∈ C.P := C.red_P hr C.sat2_P
+    exact Set.Subset.antisymm C.P_sub_NP fun A hA => C.red_P (C.sat3_hard A hA) h3
+
 end GranularComplexity
 
 end QE.Comp
