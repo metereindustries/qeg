@@ -15,7 +15,7 @@ Kato's inequality.  Position eigenstates are not states, a sharp position
 measurement costs infinite energy, and the centre-of-mass separation rests
 on exact Galilean invariance.
 
-Granular resolution (Chapter 20, sec:physics-atom).  Electron and nucleus
+Granular resolution (Chapter 21, sec:physics-atom).  Electron and nucleus
 are two point-spheres on a ring of N sites.  The script checks:
   * exact two-body reduction: the spectrum of the N^2 x N^2 two-body matrix is
     the union over K of the spectra of the N x N relative matrices H_theta

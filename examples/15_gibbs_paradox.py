@@ -16,7 +16,7 @@ volume by N! "by hand" (Gibbs), a correction not derived from the
 continuum model, in which a configuration of identical particles has no
 canonical description (the volume element of R^{3N} counts orderings).
 
-Granular resolution (Chapter 20: thm:phys-gibbs).  With M cells and N
+Granular resolution (Chapter 21: thm:phys-gibbs).  With M cells and N
 particles, at most one per cell, a configuration is a set of N cells:
 binom(M, N) configurations, and the ordered count is M(M-1)...(M-N+1) =
 N! binom(M, N).  Merging two boxes,

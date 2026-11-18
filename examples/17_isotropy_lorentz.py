@@ -14,7 +14,7 @@ mu(C) = (2eps)^n #(C cap Lambda) can be invariant at first order in eps.
 
 Granular answer (Chapter 9: prop:geometry-tilted-square,
 thm:geometry-polytope-nogo, thm:geometry-smooth-isotropy,
-prop:geometry-jittered; Chapter 20: thm:phys-lorentz-retained,
+prop:geometry-jittered; Chapter 21: thm:phys-lorentz-retained,
 thm:phys-lorentz-nogo; Chapter 3: thm:measure-retained-openness).
 
 * Rotating the unit square by arctan(3/4) changes its content by exactly

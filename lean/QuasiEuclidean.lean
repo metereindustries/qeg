@@ -31,6 +31,7 @@ import QuasiEuclidean.Ch15_Dyn
 import QuasiEuclidean.Ch15b_Learning
 import QuasiEuclidean.Ch15c_Computation
 import QuasiEuclidean.Ch15d_GranularComplexity
+import QuasiEuclidean.Ch15e_Sources
 import QuasiEuclidean.Ch16_Phys
 import QuasiEuclidean.Ch16b_Atom
 import QuasiEuclidean.Ch16c_Bell

@@ -15,7 +15,7 @@ Markovian limit) although it contradicts recurrence and the finite spectrum
 of any bounded system; quantum chaos has no positive Lyapunov exponent to
 point to.
 
-Granular resolution (Chapter 20, sec:physics-bell).  Everything is finite,
+Granular resolution (Chapter 21, sec:physics-bell).  Everything is finite,
 and the script checks:
   * CHSH: the 16 deterministic local strategies give S = +-2 only; random
     stochastic local models stay within |S| <= 2;
